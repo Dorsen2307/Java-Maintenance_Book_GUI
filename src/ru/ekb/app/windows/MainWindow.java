@@ -6,7 +6,10 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import ru.ekb.app.utilites.*;
-import java.io.IOException;
+
+import java.nio.file.NoSuchFileException;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.Objects;
 
 public class MainWindow extends JFrame {
@@ -35,16 +38,6 @@ public class MainWindow extends JFrame {
     public MainWindow(String winTitle, String iconPath, int w, int h) {
         super(winTitle);
 
-        // проверяем существование файла БД
-        try {
-            fileDB.isFile();
-            fileDB.connectDB();
-        }
-        catch (Exception e) {
-            statusLabel.setText(e.getMessage());
-
-        }
-
         //создаем фрейм
         frame = new JFrame();
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //стандартная реакция на закрытие
@@ -59,6 +52,45 @@ public class MainWindow extends JFrame {
 
         //устанавливаем размер окна
         setSize(w, h);
+
+        // проверяем существование файла БД
+        try {
+            if (FileDB.isFile()) { //
+                JOptionPane.showMessageDialog(
+                        frame,
+                        "<html><h3>Файл БД отсутствует.<br>Был создан новый файл БД!</h3>"
+                );
+                System.out.println("Файл БД отсутствует. Был создан новый файл БД!");
+            }
+            else {
+                System.out.println("Файл БД существует.");
+            }
+        }
+        catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    frame,
+                    "<html><h3>При создании файла БД возникла ошибка...</h3>",
+                    "Ошибка",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+
+        try {
+            if (FileDB.connectDriver()) { // подключаемся к Драйверу
+                System.out.println("Драйвер найден.");
+
+                FileDB.connectDB(); // соединяемся с БД
+            }
+        }
+        catch (ClassNotFoundException e) {
+            System.out.println("Драйвер не найден: " + e.getMessage());
+        }
+        catch (NoSuchFileException e) {
+            System.out.println("Файл настроек не найден: " + e.getMessage());
+        }
+        catch (Exception e) {
+            System.out.println("Сбой подключения к БД...\n" + e);
+        }
 
         // создаем модель таблицы
         tableModel = new DefaultTableModel(data, columnsHeader); // и добавляем данные и заголовок
