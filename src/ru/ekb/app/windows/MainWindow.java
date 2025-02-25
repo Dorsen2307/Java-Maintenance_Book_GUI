@@ -5,6 +5,8 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import ru.ekb.app.utilites.*;
+import java.io.IOException;
 import java.util.Objects;
 
 public class MainWindow extends JFrame {
@@ -32,10 +34,20 @@ public class MainWindow extends JFrame {
 
     public MainWindow(String winTitle, String iconPath, int w, int h) {
         super(winTitle);
+
+        // проверяем существование файла БД
+        try {
+            fileDB.isFile();
+            fileDB.connectDB();
+        }
+        catch (Exception e) {
+            statusLabel.setText(e.getMessage());
+
+        }
+
         //создаем фрейм
         frame = new JFrame();
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //стандартная реакция на закрытие
-
 
         //добавляем иконку
         try {
@@ -62,9 +74,9 @@ public class MainWindow extends JFrame {
 
         // добавляем слушателя кнопкам
         addButton.setActionCommand("Add");
-        addButton.addActionListener(new ButtonsListenter());
+        addButton.addActionListener(new ButtonsListener());
         deleteButton.setActionCommand("Delete");
-        deleteButton.addActionListener(new ButtonsListenter());
+        deleteButton.addActionListener(new ButtonsListener());
 
         buttonsPanel = new JPanel(); // создаем панель кнопок
         buttonsPanel.add(addButton);
@@ -87,9 +99,14 @@ public class MainWindow extends JFrame {
 
         getContentPane().add(BorderLayout.CENTER, tablePanel); // добавляем панель с таблицей на окно по центру
         getContentPane().add(BorderLayout.SOUTH, bottomPanel); // добавляем нижнюю панель на окно внизу
+
+        setLocationRelativeTo(null); //размещение окна по центру экрана
+        setVisible(true);
+
+
     }
 
-    private class ButtonsListenter implements ActionListener {
+    private class ButtonsListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             // получаем команду и анализируем ее

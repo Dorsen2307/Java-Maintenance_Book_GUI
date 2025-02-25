@@ -2,10 +2,11 @@ package ru.ekb.app;
 
 import ru.ekb.app.windows.MainWindow;
 
+import java.io.File;
+import java.io.IOException;
+
 public class Main {
     public static void main(String[] args) {
         MainWindow mainWindow = new MainWindow("Книга ТО", "", 1200, 500);
-        mainWindow.setLocationRelativeTo(null); //размещение окна по центру экрана
-        mainWindow.setVisible(true);
     }
 }
