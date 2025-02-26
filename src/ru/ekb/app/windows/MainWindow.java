@@ -82,7 +82,8 @@ public class MainWindow extends JFrame {
             System.out.println("Драйвер найден.");
 
             Connection connection = FileDB.connectDB(); // соединяемся с БД
-            boolean createdTable = FileDB.isTable(connection, "main");
+            FileDB.isTable(connection, "main"); // проверяем наличие таблицы 'main', если нет - создаем
+
         }
         catch (ClassNotFoundException e) {
             System.out.println("Драйвер не найден: " + e.getMessage());

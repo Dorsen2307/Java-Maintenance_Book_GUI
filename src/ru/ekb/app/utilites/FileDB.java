@@ -4,10 +4,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.util.Properties;
 
 public class FileDB {
@@ -46,18 +43,32 @@ public class FileDB {
         return DriverManager.getConnection(url, userName, password);
     }
 
-    public static boolean isTable(Connection connection, String table) throws Exception {
+    public static void isTable(Connection connection, String table) throws Exception {
         DatabaseMetaData meta = connection.getMetaData();
         ResultSet tables = meta.getTables(null, null, table, null);
 
         if (!tables.next()) {
-            return createdTable(connection);
+            createdTable(connection);
         }
 
-        return false;
+        System.out.println("Таблица 'main' существует.");
     }
 
-    private static boolean createdTable(Connection connection) throws Exception {
+    private static void createdTable(Connection connection) throws Exception {
+        // команда создания таблицы
+        String sqlCommand = "CREATE TABLE main (Id INT PRIMARY KEY AUTO_INCREMENT, " +
+                "TypeService VARCHAR(50), " +
+                "Regulations VARCHAR(20)," +
+                "ScheduledDate DATE," +
+                "LastServiceDate DATE," +
+                "Volume INT," +
+                "ManufacturerCode TEXT," +
+                "SparePartsStock INT," +
+                "Comment TEXT)";
 
+        Statement statement = connection.createStatement();
+        // создаем таблицу
+        statement.executeUpdate(sqlCommand);
+        System.out.println("Таблица 'main' создана!");
     }
 }
