@@ -76,11 +76,13 @@ public class MainWindow extends JFrame {
         }
 
         try {
-            if (FileDB.connectDriver()) { // подключаемся к Драйверу
-                System.out.println("Драйвер найден.");
-
-                FileDB.connectDB(); // соединяемся с БД
+            if (!FileDB.connectDriver()) { // подключаемся к Драйверу
+                return;
             }
+            System.out.println("Драйвер найден.");
+
+            Connection connection = FileDB.connectDB(); // соединяемся с БД
+            boolean createdTable = FileDB.isTable(connection, "main");
         }
         catch (ClassNotFoundException e) {
             System.out.println("Драйвер не найден: " + e.getMessage());
