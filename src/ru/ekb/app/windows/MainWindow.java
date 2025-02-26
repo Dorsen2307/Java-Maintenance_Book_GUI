@@ -8,8 +8,7 @@ import java.awt.event.ActionListener;
 import ru.ekb.app.utilites.*;
 
 import java.nio.file.NoSuchFileException;
-import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.*;
 import java.util.Objects;
 
 public class MainWindow extends JFrame {
@@ -19,21 +18,6 @@ public class MainWindow extends JFrame {
     private DefaultTableModel tableModel;
     private JLabel statusLabel;
     private JButton addButton, deleteButton;
-
-    private Object[][] data = new String[][] {
-            {"Фильтр масляный", "7000 - 8000", "30.03.2025", "22.09.2024", "1 шт",
-                    "263202F100, Masuma MFC2016, Mando EEOK0003Y", "1 шт", ""},
-            {"Фильтр салонный", "10000", "30.03.2025", "22.03.2024", "1 шт",
-                    "97133G8000, KORTEX KC0142, Goodwill AG634CFC", "1 шт", ""},
-            {"Фильтр Воздушный", "10000", "30.03.2025", "22.03.2024", "1 шт",
-                    "28113A9200, KORTEX KA0286, Goodwill AG485", "1 шт", ""},
-            {"Масло двигателя", "7000 - 8000", "30.03.2025", "22.09.2024", "6,5 л",
-                    "XTeer diesel ultra c3 5W-30, Sintec 5W-30 ACEA C2/C3", "7 л", ""},
-    };
-    private Object[] columnsHeader = new String[] {
-            "Вид обслуживания", "Регламент", "Дата по плану", "Последнее обслуживание",
-            "Объем", "Производитель/Код", "Запчастей в наличии", "Комментарий"
-    };
 
     public MainWindow(String winTitle, String iconPath, int w, int h) {
         super(winTitle);
@@ -53,11 +37,14 @@ public class MainWindow extends JFrame {
         //устанавливаем размер окна
         setSize(w, h);
 
+        // создаем модель таблицы
+        tableModel = new DefaultTableModel();
+        table = new JTable(tableModel);
+
         // проверяем существование файла БД
         try {
             if (FileDB.isFile()) { //
-                JOptionPane.showMessageDialog(
-                        frame,
+                JOptionPane.showMessageDialog(frame,
                         "<html><h3>Файл БД отсутствует.<br>Был создан новый файл БД!</h3>"
                 );
                 System.out.println("Файл БД отсутствует. Был создан новый файл БД!");
@@ -67,37 +54,46 @@ public class MainWindow extends JFrame {
             }
         }
         catch (Exception e) {
-            JOptionPane.showMessageDialog(
-                    frame,
+            JOptionPane.showMessageDialog(frame,
                     "<html><h3>При создании файла БД возникла ошибка...</h3>",
                     "Ошибка",
                     JOptionPane.ERROR_MESSAGE
             );
+            System.out.println("При создании файла БД возникла ошибка...");
         }
 
-        try {
-            if (!FileDB.connectDriver()) { // подключаемся к Драйверу
-                return;
+        if (!FileDB.connectDriver()) { // подключаемся к Драйверу
+            return;
+        }
+        System.out.println("Драйвер найден.");
+
+        Connection connection = FileDB.connectDB(); // соединяемся с БД
+
+        // проверяем наличие таблицы 'main', если нет - создаем и считываем данные с таблицы
+        ResultSet resultSet = FileDB.isTable(connection, "Main");
+        if (resultSet != null) {
+            try {
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                // Добавляем имена колонок в модель таблицы
+                for (int i = 1; i <= columnCount; i++) {
+                    String convertedName = FileDB.convertedHeader(metaData.getColumnName(i)); // заменяем на рус.яз.
+                    tableModel.addColumn(convertedName);
+                }
+
+                // Добавляем строки в модель таблицы
+                while (resultSet.next()) {
+                    Object[] row = new Object[columnCount]; // создаем объект, состоящий из данных в количестве columnCount
+                    for (int i = 1; i <= columnCount; i++) {
+                        row[i - 1] = resultSet.getObject(i); // считываем в наш массив данные строки и т.д.
+                    }
+                    tableModel.addRow(row); // добавляем в модель таблицы строку
+                }
+            } catch (Exception e) {
+                System.out.println("Ошибка данных: " + e);
             }
-            System.out.println("Драйвер найден.");
-
-            Connection connection = FileDB.connectDB(); // соединяемся с БД
-            FileDB.isTable(connection, "main"); // проверяем наличие таблицы 'main', если нет - создаем
-
         }
-        catch (ClassNotFoundException e) {
-            System.out.println("Драйвер не найден: " + e.getMessage());
-        }
-        catch (NoSuchFileException e) {
-            System.out.println("Файл настроек не найден: " + e.getMessage());
-        }
-        catch (Exception e) {
-            System.out.println("Сбой подключения к БД...\n" + e);
-        }
-
-        // создаем модель таблицы
-        tableModel = new DefaultTableModel(data, columnsHeader); // и добавляем данные и заголовок
-        table = new JTable(tableModel);
 
         tablePanel = new JPanel(); // создаем основу для таблицы
         tablePanel.add(new JScrollPane(table)); // добавляем таблицу на панель со скроллом
@@ -159,8 +155,6 @@ public class MainWindow extends JFrame {
 
         private void addRow() {
             String[] inputData = new String[8]; // создаем массив для хранения введенных данных
-//            {"Вид обслуживания", "Регламент", "Дата по плану", "Последнее обслуживание",
-//            "Объем", "Производитель/Код детали", "Запчастей в наличии", "Комментарий"};
 
             inputData[0] = JOptionPane.showInputDialog(frame, "Введите вид обслуживания:");
             if (inputData[0] == null) { // проверяем нажатие кнопки 'отмена'
