@@ -1,25 +1,68 @@
 package ru.ekb.app.utilites;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
-import java.util.*;
-
-import static javax.swing.UIManager.put;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 
 public class FileDB {
 
-    public static boolean isFile() throws Exception {
-        File file = new File("src/ru/ekb/app/mainDB.sql");
-        if (!file.exists()) {
-            return file.createNewFile();
-        }
+    public static boolean isFile(Connection connection, String dbName) {
+        Statement statement = null;
+        ResultSet resultSet = null;
+        String query = "SHOW DATABASES;";
 
-        return false;
+        try {
+            statement = connection.createStatement();
+            resultSet = statement.executeQuery(query);
+
+            boolean dbExists = false;
+
+            // проверяем, есть ли БД с именем mainDB
+            while (resultSet.next()) {
+                String dbNameRes = resultSet.getString(1);
+                if (dbNameRes.equalsIgnoreCase("maindb")) {
+                    dbExists = true;
+                    break;
+                }
+            }
+
+            if (dbExists) {
+                System.out.println("База данных 'maindb' существует.");
+                return true;
+            } else {
+                System.out.println("База данных 'maindb' не найдена.");
+                // если не БД обнаружена - создаем новую
+                createdDB(connection, statement, dbName);
+                return true;
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Ошибка соединения (isFile): " + e.getMessage());
+            return false;
+        } finally {
+            try {
+                if (resultSet != null) resultSet.close();
+                if (statement != null) statement.close();
+            } catch (SQLException e) {
+                System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
+            }
+        }
+    }
+
+    private static void createdDB(Connection connection, Statement statement, String dbName) {
+        try {
+            String createDatabaseQuery = "CREATE DATABASE " + dbName + ";";
+            statement.executeUpdate(createDatabaseQuery);
+            System.out.println("База данных '" + dbName + "' успешно создана.");
+        } catch (SQLException e) {
+            System.out.println("Ошибка при создании базы данных: " + e.getMessage());
+        }
     }
 
     public static boolean connectDriver(){
@@ -47,11 +90,13 @@ public class FileDB {
     public static Connection connectDB() {
         try {
             Connection connection = getConnect();
-            System.out.println("Успешное соединение с БД!");
+            if (connection != null) {
+                System.out.println("Успешное соединение с БД!");
+            }
             return connection;
         }
         catch (Exception e) {
-            System.out.println("Ошибка доступа к БД: " + e);
+            System.out.println("Ошибка доступа к БД (connectDB): " + e);
             return null;
         }
     }
@@ -73,51 +118,74 @@ public class FileDB {
             return null;
         }
         catch (SQLException e) {
-            System.out.println("Ошибка доступа к БД: " + e);
+            System.out.println("Ошибка доступа к БД (getConnect): " + e);
             return null;
         }
-
-
     }
 
-    public static ResultSet isTable(Connection connection, String table) {
+    public static ResultSet isTable(Connection connection, String table, String dbName) {
+        boolean resultCreatedTable;
+
         try {
             DatabaseMetaData meta = connection.getMetaData();
             ResultSet tables = meta.getTables(null, null, table, null);
 
             if (!tables.next()) {
-                createdTable(connection);
+                resultCreatedTable = createdTable(connection, dbName);
             } else {
-                System.out.println("Таблица 'Main' существует.");
+                System.out.println("Таблица 'main' существует.");
+                resultCreatedTable = true;
             }
 
-            return getDataAll(connection);
+            if (resultCreatedTable) {
+                return getDataAll(connection);
+            } else {
+                return null;
+            }
         } catch (Exception e) {
-            System.out.println("Ошибка: " + e);
+            System.out.println("Ошибка (isTable): " + e);
             return null;
         }
     }
 
-    private static void createdTable(Connection connection) throws Exception {
+    private static boolean createdTable(Connection connection, String dbName) {
+        Statement statement = null;
         // команда создания таблицы
-        String sqlCommand = "CREATE TABLE Main (Id INT PRIMARY KEY AUTO_INCREMENT, " +
-                "TypeService VARCHAR(50), " +
+        String createDatabaseQuery = "CREATE TABLE main (Id INT PRIMARY KEY AUTO_INCREMENT, " +
+                "TypeService VARCHAR(100), " +
                 "Regulations VARCHAR(20)," +
                 "ScheduledDate DATE," +
                 "LastServiceDate DATE," +
                 "Volume INT," +
-                "ManufacturerCode TEXT," +
+                "ManufacturerCode VARCHAR(500)," +
                 "SparePartsStock INT," +
-                "Comment TEXT)";
+                "Comment VARCHAR(500))";
+        String useDatabaseQuery = "USE " + dbName + ";"; // команда выбора БД
 
-        Statement statement = connection.createStatement();
-        // создаем таблицу
-        statement.executeUpdate(sqlCommand);
-        System.out.println("Таблица 'Main' создана!");
+        try {
+            statement = connection.createStatement();
+            // выбираем БД
+            statement.executeUpdate(useDatabaseQuery);
+            System.out.println("База данных '" + dbName + "' выбрана.");
+            // создаем таблицу
+            statement.executeUpdate(createDatabaseQuery);
+            System.out.println("Таблица 'main' создана!");
+            return true;
+        } catch (SQLException e) {
+            System.out.println("Ошибка при создании таблицы (createdTable): " + e);
+            return false;
+        } finally {
+            try {
+                if (statement != null) statement.close();
+            } catch (SQLException e) {
+                System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
+            }
+        }
     }
 
     public static String convertedHeader(String head) {
         Map<String, String > listHeads = new HashMap<>();
+        listHeads.put("Id", "ИД");
         listHeads.put("TypeService", "Вид обслуживания");
         listHeads.put("Regulations", "Регламент");
         listHeads.put("ScheduledDate", "Дата по плану");
@@ -131,14 +199,14 @@ public class FileDB {
     }
 
     public static ResultSet getDataAll(Connection connection) {
-        String sqlCommand = "SELECT * FROM Main"; // команда создания таблицы
+        String sqlCommand = "SELECT * FROM main"; // команда получения всех данных из таблицы
         try {
             Statement statement = connection.createStatement();
             // запрашиваем данные
             return statement.executeQuery(sqlCommand);
         }
         catch (Exception e) {
-            System.out.println("Ошибка запроса: " + e);
+            System.out.println("Ошибка запроса (getDataAll): " + e);
             return null;
         }
     }

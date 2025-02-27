@@ -18,6 +18,7 @@ public class MainWindow extends JFrame {
     private DefaultTableModel tableModel;
     private JLabel statusLabel;
     private JButton addButton, deleteButton;
+    private String dbName = "maindb";
 
     public MainWindow(String winTitle, String iconPath, int w, int h) {
         super(winTitle);
@@ -41,36 +42,18 @@ public class MainWindow extends JFrame {
         tableModel = new DefaultTableModel();
         table = new JTable(tableModel);
 
-        // проверяем существование файла БД
-        try {
-            if (FileDB.isFile()) { //
-                JOptionPane.showMessageDialog(frame,
-                        "<html><h3>Файл БД отсутствует.<br>Был создан новый файл БД!</h3>"
-                );
-                System.out.println("Файл БД отсутствует. Был создан новый файл БД!");
-            }
-            else {
-                System.out.println("Файл БД существует.");
-            }
-        }
-        catch (Exception e) {
-            JOptionPane.showMessageDialog(frame,
-                    "<html><h3>При создании файла БД возникла ошибка...</h3>",
-                    "Ошибка",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            System.out.println("При создании файла БД возникла ошибка...");
-        }
-
         if (!FileDB.connectDriver()) { // подключаемся к Драйверу
             return;
         }
         System.out.println("Драйвер найден.");
 
         Connection connection = FileDB.connectDB(); // соединяемся с БД
+        if (connection == null) return;
+
+        if (!FileDB.isFile(connection, dbName)) return; // если БД не существует, то выходим
 
         // проверяем наличие таблицы 'main', если нет - создаем и считываем данные с таблицы
-        ResultSet resultSet = FileDB.isTable(connection, "Main");
+        ResultSet resultSet = FileDB.isTable(connection, "main", dbName);
         if (resultSet != null) {
             try {
                 ResultSetMetaData metaData = resultSet.getMetaData();
