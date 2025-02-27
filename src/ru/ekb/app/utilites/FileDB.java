@@ -138,7 +138,7 @@ public class FileDB {
             }
 
             if (resultCreatedTable) {
-                return getDataAll(connection);
+                return getDataAll(connection, dbName);
             } else {
                 return null;
             }
@@ -159,14 +159,12 @@ public class FileDB {
                 "Volume INT," +
                 "ManufacturerCode VARCHAR(500)," +
                 "SparePartsStock INT," +
-                "Comment VARCHAR(500))";
-        String useDatabaseQuery = "USE " + dbName + ";"; // команда выбора БД
+                "Comment VARCHAR(500));";
 
         try {
             statement = connection.createStatement();
             // выбираем БД
-            statement.executeUpdate(useDatabaseQuery);
-            System.out.println("База данных '" + dbName + "' выбрана.");
+            if (!selectedDB(statement, dbName)) return false;
             // создаем таблицу
             statement.executeUpdate(createDatabaseQuery);
             System.out.println("Таблица 'main' создана!");
@@ -198,10 +196,26 @@ public class FileDB {
         return listHeads.get(head);
     }
 
-    public static ResultSet getDataAll(Connection connection) {
-        String sqlCommand = "SELECT * FROM main"; // команда получения всех данных из таблицы
+    private static boolean selectedDB(Statement statement, String dbName) {
+        try {
+            // выбираем БД
+            statement.executeUpdate("USE " + dbName + ";");
+            System.out.println("База данных '" + dbName + "' выбрана.");
+            return true;
+        } catch (SQLException e) {
+            System.out.println("Ошибка при выборе БД: " + e);
+            return false;
+        }
+    }
+
+    public static ResultSet getDataAll(Connection connection, String dbName) {
+        String sqlCommand = "SELECT * FROM main;"; // команда получения всех данных из таблицы
+
+        String useTableQuery = "USE maindb;";
         try {
             Statement statement = connection.createStatement();
+            // выбираем БД
+            if (!selectedDB(statement, dbName)) return null;
             // запрашиваем данные
             return statement.executeQuery(sqlCommand);
         }

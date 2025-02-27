@@ -55,6 +55,7 @@ public class MainWindow extends JFrame {
         // проверяем наличие таблицы 'main', если нет - создаем и считываем данные с таблицы
         ResultSet resultSet = FileDB.isTable(connection, "main", dbName);
         if (resultSet != null) {
+            System.out.println("Данные получены.");
             try {
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount();
@@ -63,6 +64,7 @@ public class MainWindow extends JFrame {
                 for (int i = 1; i <= columnCount; i++) {
                     String convertedName = FileDB.convertedHeader(metaData.getColumnName(i)); // заменяем на рус.яз.
                     tableModel.addColumn(convertedName);
+                    System.out.println("Имена колонок конвертированы и добавлены в модель таблицы.");
                 }
 
                 // Добавляем строки в модель таблицы
@@ -72,6 +74,7 @@ public class MainWindow extends JFrame {
                         row[i - 1] = resultSet.getObject(i); // считываем в наш массив данные строки и т.д.
                     }
                     tableModel.addRow(row); // добавляем в модель таблицы строку
+                    System.out.println("Данные добавлены в модель таблицы.");
                 }
             } catch (Exception e) {
                 System.out.println("Ошибка данных: " + e);
