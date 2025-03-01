@@ -1,5 +1,6 @@
 package ru.ekb.app.utilites;
 
+import javax.swing.table.DefaultTableModel;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -11,6 +12,49 @@ import java.util.Map;
 import java.util.Properties;
 
 public class FileDB {
+    public static Connection connection;
+    private static final String dbName = "maindb";
+
+    public static void getConnectionDbAndReadAllData(DefaultTableModel tableModel) {
+        if (!connectDriver()) { // подключаемся к Драйверу
+            return;
+        }
+        System.out.println("Драйвер найден.");
+
+        connection = connectDB(); // соединяемся с БД
+        if (connection == null) return;
+
+        if (!isFile(connection, dbName)) return; // если БД не существует, то выходим
+
+        // проверяем наличие таблицы 'main', если нет - создаем и считываем данные с таблицы
+        ResultSet resultSet = isTable(connection, "main", dbName);
+        if (resultSet != null) {
+            System.out.println("Данные получены.");
+            try {
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                // Добавляем имена колонок в модель таблицы
+                for (int i = 1; i <= columnCount; i++) {
+                    String convertedName = convertedHeader(metaData.getColumnName(i)); // заменяем на рус.яз.
+                    tableModel.addColumn(convertedName);
+                }
+                System.out.println("Имена колонок конвертированы и добавлены в модель таблицы.");
+
+                // Добавляем строки в модель таблицы
+                while (resultSet.next()) {
+                    Object[] row = new Object[columnCount]; // создаем объект, состоящий из данных в количестве columnCount
+                    for (int i = 1; i <= columnCount; i++) {
+                        row[i - 1] = resultSet.getObject(i); // считываем в наш массив данные строки и т.д.
+                    }
+                    tableModel.addRow(row); // добавляем в модель таблицы строку
+                    System.out.println("Данные добавлены в модель таблицы.");
+                }
+            } catch (Exception e) {
+                System.out.println("Ошибка данных: " + e);
+            }
+        }
+    }
 
     public static boolean isFile(Connection connection, String dbName) {
         Statement statement = null;
@@ -34,13 +78,12 @@ public class FileDB {
 
             if (dbExists) {
                 System.out.println("База данных 'maindb' существует.");
-                return true;
             } else {
                 System.out.println("База данных 'maindb' не найдена.");
                 // если не БД обнаружена - создаем новую
-                createdDB(connection, statement, dbName);
-                return true;
+                createdDB(statement, dbName);
             }
+            return true;
 
         } catch (SQLException e) {
             System.out.println("Ошибка соединения (isFile): " + e.getMessage());
@@ -55,7 +98,7 @@ public class FileDB {
         }
     }
 
-    private static void createdDB(Connection connection, Statement statement, String dbName) {
+    private static void createdDB(Statement statement, String dbName) {
         try {
             String createDatabaseQuery = "CREATE DATABASE " + dbName + ";";
             statement.executeUpdate(createDatabaseQuery);
@@ -164,7 +207,7 @@ public class FileDB {
         try {
             statement = connection.createStatement();
             // выбираем БД
-            if (!selectedDB(statement, dbName)) return false;
+            if (selectedDB(statement, dbName)) return false;
             // создаем таблицу
             statement.executeUpdate(createDatabaseQuery);
             System.out.println("Таблица 'main' создана!");
@@ -201,21 +244,20 @@ public class FileDB {
             // выбираем БД
             statement.executeUpdate("USE " + dbName + ";");
             System.out.println("База данных '" + dbName + "' выбрана.");
-            return true;
+            return false;
         } catch (SQLException e) {
             System.out.println("Ошибка при выборе БД: " + e);
-            return false;
+            return true;
         }
     }
 
     public static ResultSet getDataAll(Connection connection, String dbName) {
         String sqlCommand = "SELECT * FROM main;"; // команда получения всех данных из таблицы
 
-        String useTableQuery = "USE maindb;";
         try {
             Statement statement = connection.createStatement();
             // выбираем БД
-            if (!selectedDB(statement, dbName)) return null;
+            if (selectedDB(statement, dbName)) return null;
             // запрашиваем данные
             return statement.executeQuery(sqlCommand);
         }

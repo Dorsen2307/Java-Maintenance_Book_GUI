@@ -18,7 +18,6 @@ public class MainWindow extends JFrame {
     private DefaultTableModel tableModel;
     private JLabel statusLabel;
     private JButton addButton, deleteButton;
-    private String dbName = "maindb";
 
     public MainWindow(String winTitle, String iconPath, int w, int h) {
         super(winTitle);
@@ -42,44 +41,8 @@ public class MainWindow extends JFrame {
         tableModel = new DefaultTableModel();
         table = new JTable(tableModel);
 
-        if (!FileDB.connectDriver()) { // подключаемся к Драйверу
-            return;
-        }
-        System.out.println("Драйвер найден.");
-
-        Connection connection = FileDB.connectDB(); // соединяемся с БД
-        if (connection == null) return;
-
-        if (!FileDB.isFile(connection, dbName)) return; // если БД не существует, то выходим
-
-        // проверяем наличие таблицы 'main', если нет - создаем и считываем данные с таблицы
-        ResultSet resultSet = FileDB.isTable(connection, "main", dbName);
-        if (resultSet != null) {
-            System.out.println("Данные получены.");
-            try {
-                ResultSetMetaData metaData = resultSet.getMetaData();
-                int columnCount = metaData.getColumnCount();
-
-                // Добавляем имена колонок в модель таблицы
-                for (int i = 1; i <= columnCount; i++) {
-                    String convertedName = FileDB.convertedHeader(metaData.getColumnName(i)); // заменяем на рус.яз.
-                    tableModel.addColumn(convertedName);
-                    System.out.println("Имена колонок конвертированы и добавлены в модель таблицы.");
-                }
-
-                // Добавляем строки в модель таблицы
-                while (resultSet.next()) {
-                    Object[] row = new Object[columnCount]; // создаем объект, состоящий из данных в количестве columnCount
-                    for (int i = 1; i <= columnCount; i++) {
-                        row[i - 1] = resultSet.getObject(i); // считываем в наш массив данные строки и т.д.
-                    }
-                    tableModel.addRow(row); // добавляем в модель таблицы строку
-                    System.out.println("Данные добавлены в модель таблицы.");
-                }
-            } catch (Exception e) {
-                System.out.println("Ошибка данных: " + e);
-            }
-        }
+        // подключаемся к БД и считываем все данные
+        FileDB.getConnectionDbAndReadAllData(tableModel);
 
         tablePanel = new JPanel(); // создаем основу для таблицы
         tablePanel.add(new JScrollPane(table)); // добавляем таблицу на панель со скроллом
@@ -119,8 +82,6 @@ public class MainWindow extends JFrame {
 
         setLocationRelativeTo(null); //размещение окна по центру экрана
         setVisible(true);
-
-
     }
 
     private class ButtonsListener implements ActionListener {
