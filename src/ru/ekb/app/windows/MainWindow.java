@@ -1,23 +1,19 @@
 package ru.ekb.app.windows;
 
+import ru.ekb.app.utilites.FileDB;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import ru.ekb.app.utilites.*;
-
-import java.nio.file.NoSuchFileException;
-import java.sql.*;
 import java.util.Objects;
 
 public class MainWindow extends JFrame {
-    private JFrame frame;
-    private JPanel tablePanel, buttonsPanel, statusPanel, bottomPanel;
-    private JTable table;
-    private DefaultTableModel tableModel;
-    private JLabel statusLabel;
-    private JButton addButton, deleteButton;
+    private final JFrame frame;
+    private final JTable table;
+    private final DefaultTableModel tableModel;
+    private final JLabel statusLabel;
 
     public MainWindow(String winTitle, String iconPath, int w, int h) {
         super(winTitle);
@@ -44,13 +40,13 @@ public class MainWindow extends JFrame {
         // подключаемся к БД и считываем все данные
         FileDB.getConnectionDbAndReadAllData(tableModel);
 
-        tablePanel = new JPanel(); // создаем основу для таблицы
+        JPanel tablePanel = new JPanel(); // создаем основу для таблицы
         tablePanel.add(new JScrollPane(table)); // добавляем таблицу на панель со скроллом
         tablePanel.setLayout(new BoxLayout(tablePanel, BoxLayout.Y_AXIS)); // устанавливаем вертикальное построение
 
         // создаем кнопки
-        addButton = new JButton("Добавить");
-        deleteButton = new JButton("Удалить");
+        JButton addButton = new JButton("Добавить");
+        JButton deleteButton = new JButton("Удалить");
 
         // добавляем слушателя кнопкам
         addButton.setActionCommand("Add");
@@ -58,13 +54,13 @@ public class MainWindow extends JFrame {
         deleteButton.setActionCommand("Delete");
         deleteButton.addActionListener(new ButtonsListener());
 
-        buttonsPanel = new JPanel(); // создаем панель кнопок
+        JPanel buttonsPanel = new JPanel(); // создаем панель кнопок
         buttonsPanel.add(addButton);
         buttonsPanel.add(deleteButton);
         buttonsPanel.setBackground(Color.LIGHT_GRAY); // серый окрас панели
         buttonsPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5)); // построение слева направо с отступами
 
-        statusPanel = new JPanel(); // создаем панель для вывода статуса и информации
+        JPanel statusPanel = new JPanel(); // создаем панель для вывода статуса и информации
         statusLabel = new JLabel("Здесь будет статус или информация"); // создаем тикет
         statusPanel.add(statusLabel); // добавляем тикет на панель
         statusPanel.setBackground(Color.LIGHT_GRAY); // задаем цвет панели статуса
@@ -72,7 +68,7 @@ public class MainWindow extends JFrame {
         // рисуем верхнюю границу панели для разделения
         statusPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.GRAY));
 
-        bottomPanel = new JPanel(); // создаем нижнюю панель для размещения панелей кнопок и статуса
+        JPanel bottomPanel = new JPanel(); // создаем нижнюю панель для размещения панелей кнопок и статуса
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
         bottomPanel.add(buttonsPanel);
         bottomPanel.add(statusPanel);
@@ -102,6 +98,8 @@ public class MainWindow extends JFrame {
 
         private void addRow() {
             String[] inputData = new String[8]; // создаем массив для хранения введенных данных
+
+            System.out.println("Активирована кнопка 'Добавить'");
 
             inputData[0] = JOptionPane.showInputDialog(frame, "Введите вид обслуживания:");
             if (inputData[0] == null) { // проверяем нажатие кнопки 'отмена'
@@ -148,15 +146,25 @@ public class MainWindow extends JFrame {
 
             // добавляем новую строку в модель таблицы
             tableModel.addRow(inputData);
-
             // обновляем статус
-            statusLabel.setText("Новые данные добавлены.");
+            statusLabel.setText("Новые данные успешно добавлены в модель.");
+            System.out.println("Новые данные успешно добавлены в модель.");
+
+            // обновляем данные в БД
+            String resultUpdateDataDB = FileDB.updateDataDB(tableModel, statusLabel);
+            statusLabel.setText(resultUpdateDataDB);
+            System.out.println(resultUpdateDataDB);
         }
 
         private void deleteRow() {
             int selectedRow = table.getSelectedRow(); // получаем индекс выбранной строки
             tableModel.removeRow(selectedRow); // удаляем строку по индексу
             statusLabel.setText("Строка №" + (selectedRow + 1) + " удалена.");
+
+            // обновляем данные в БД
+            String resultUpdateDataDB = FileDB.updateDataDB(tableModel, statusLabel);
+            statusLabel.setText(resultUpdateDataDB);
+            System.out.println(resultUpdateDataDB);
         }
 
         //todo - добавить метод редактирования

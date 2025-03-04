@@ -1,5 +1,6 @@
 package ru.ekb.app.utilites;
 
+import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,9 +8,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.sql.Date;
 
 public class FileDB {
     public static Connection connection;
@@ -53,6 +57,12 @@ public class FileDB {
             } catch (Exception e) {
                 System.out.println("Ошибка данных: " + e);
             }
+        }
+        try {
+            if (resultSet != null) resultSet.close();
+            if (connection != null) connection.close();
+        } catch (SQLException e) {
+            System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
         }
     }
 
@@ -263,6 +273,59 @@ public class FileDB {
         }
         catch (Exception e) {
             System.out.println("Ошибка запроса (getDataAll): " + e);
+            return null;
+        }
+    }
+
+    public static String updateDataDB(DefaultTableModel tableModel, JLabel statusLabel) {
+        String updateDataQuery = "INSERT INTO main (" +
+                "TypeService, Regulations, ScheduledDate, LastServiceDate, " +
+                "Volume, ManufacturerCode, SparePartsStock, Comment" +
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try {
+            connection = connectDB();
+            assert connection != null;
+            // выбираем БД
+            PreparedStatement preparedStatement = connection.prepareStatement(updateDataQuery);
+            if (selectedDB(preparedStatement, dbName)) return "Ошибка выбора БД...";
+
+            // проходимся по всем строкам модели и добавляем данные в БД
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                String column1Value = tableModel.getValueAt(i, 0).toString();
+                String column2Value = tableModel.getValueAt(i, 1).toString();
+                Date column3Value = parseDate(tableModel.getValueAt(i, 2).toString());
+                Date column4Value = parseDate(tableModel.getValueAt(i, 3).toString());
+                double column5Value = Double.parseDouble(tableModel.getValueAt(i, 4).toString());
+                String column6Value = tableModel.getValueAt(i, 5).toString();
+                double column7Value = Double.parseDouble(tableModel.getValueAt(i, 6).toString());
+                String column8Value = tableModel.getValueAt(i, 7).toString();
+
+                preparedStatement.setString(1, column1Value);
+                preparedStatement.setString(2, column2Value);
+                preparedStatement.setDate(3, column3Value);
+                preparedStatement.setDate(4, column4Value);
+                preparedStatement.setDouble(5, column5Value);
+                preparedStatement.setString(6, column6Value);
+                preparedStatement.setDouble(7, column7Value);
+                preparedStatement.setString(8, column8Value);
+                preparedStatement.executeUpdate();
+            }
+
+            return "Данные успешно добавлены в БД!";
+        } catch (SQLException e) {
+            System.out.println("Ошибка SQL (updateDataDB): " + e);
+            return "Ошибка выполнения SQL команды.";
+        }
+    }
+
+    private static Date parseDate(String date) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
+        try {
+            java.util.Date parseDate = dateFormat.parse(date); // преобразуем текст в java.util.Date
+            return new Date(parseDate.getTime()); // преобразуем java.util.Date в java.sql.Date
+        } catch (ParseException e) {
+            System.out.println("Ошибка парсинга даты: " + e);
             return null;
         }
     }
