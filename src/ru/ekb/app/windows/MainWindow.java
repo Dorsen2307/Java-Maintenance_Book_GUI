@@ -148,10 +148,6 @@ public class MainWindow extends JFrame {
 //            }
 
             // добавляем новую строку в модель таблицы
-//            tableModel.addRow(inputData);
-            // обновляем статус
-//            statusLabel.setText("Новые данные успешно добавлены в модель.");
-//            System.out.println("Новые данные успешно добавлены в модель.");
 
             // обновляем данные в БД
             String resultUpdateDataDB = FileDB.updateDataDB(tableModel, inputData);
@@ -159,11 +155,27 @@ public class MainWindow extends JFrame {
             System.out.println(resultUpdateDataDB);
 
             // обновляем данные в модели
+            updateDataModel();
+        }
+
+        private void deleteRow() {
+            int selectedRow = table.getSelectedRow(); // получаем индекс выбранной строки
+            Object idRow = tableModel.getValueAt(selectedRow, 1); // получаем id строки
+
+            FileDB.deleteRowDB((String) idRow);
+
+            statusLabel.setText("Строка с id#" + idRow + " удалена.");
+
+            // обновляем данные в БД
+            updateDataModel();
+        }
+
+        private void updateDataModel() {
             tableModel.setRowCount(0); // очищаем модель
 
             try {
                 ResultSet resultSet = FileDB.isTable(FileDB.connectDB(), "main", FileDB.dbName);
-                assert resultSet != null : "Ошибка на стадии обновления данных в модели.";
+                assert resultSet != null : "Ошибка resultSet=null на стадии обновления данных в модели.";
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount();
                 FileDB.getRowFromDB(tableModel, resultSet, columnCount);
@@ -171,17 +183,6 @@ public class MainWindow extends JFrame {
             } catch (SQLException e) {
                 System.out.println("Ошибка SQL (addRow).");
             }
-        }
-
-        private void deleteRow() {
-            int selectedRow = table.getSelectedRow(); // получаем индекс выбранной строки
-            tableModel.removeRow(selectedRow); // удаляем строку по индексу
-            statusLabel.setText("Строка №" + (selectedRow + 1) + " удалена.");
-
-            // обновляем данные в БД
-//            String resultUpdateDataDB = FileDB.updateDataDB(tableModel);
-//            statusLabel.setText(resultUpdateDataDB);
-//            System.out.println(resultUpdateDataDB);
         }
 
         //todo - добавить метод редактирования

@@ -328,6 +328,12 @@ public class FileDB {
         } catch (SQLException e) {
             System.out.println("Ошибка SQL (updateDataDB): " + e);
             return "Ошибка выполнения SQL команды.";
+        } finally {
+            try {
+                if (connection != null) connection.close();
+            } catch (SQLException e) {
+                System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
+            }
         }
     }
 
@@ -339,6 +345,26 @@ public class FileDB {
         } catch (ParseException e) {
             System.out.println("Ошибка парсинга даты: " + e);
             return null;
+        }
+    }
+
+    public static void deleteRowDB(String idRow) {
+        String deleteRowQuery = "DELETE FROM main WHERE Id = ?;";
+
+        try {
+            connection = connectDB();
+            assert connection != null;
+            PreparedStatement preparedStatement = connection.prepareStatement(deleteRowQuery);
+            preparedStatement.setString(1, idRow); // устанавливаем значение для параметра по ?
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Ошибка SQL (deleteRowDB): " + e);
+        } finally {
+            try {
+                if (connection != null) connection.close();
+            } catch (SQLException e) {
+                System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
+            }
         }
     }
 }
