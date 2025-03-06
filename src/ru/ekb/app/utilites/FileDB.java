@@ -1,6 +1,5 @@
 package ru.ekb.app.utilites;
 
-import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,9 +16,9 @@ import java.sql.Date;
 
 public class FileDB {
     public static Connection connection;
-    private static final String dbName = "maindb";
+    public static final String dbName = "maindb";
 
-    public static void getConnectionDbAndReadAllData(DefaultTableModel tableModel) {
+    public static void getConnectionDb(DefaultTableModel tableModel) {
         if (!connectDriver()) { // подключаемся к Драйверу
             return;
         }
@@ -31,7 +30,16 @@ public class FileDB {
         if (!isFile(connection, dbName)) return; // если БД не существует, то выходим
 
         // проверяем наличие таблицы 'main', если нет - создаем и считываем данные с таблицы
-        ResultSet resultSet = isTable(connection, "main", dbName);
+        ResultSet resultSet = isTable(connectDB(), "main", dbName);
+        readAllData(tableModel, resultSet);
+        try {
+            if (connection != null) connection.close();
+        } catch (SQLException e) {
+            System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
+        }
+    }
+
+    private static void readAllData(DefaultTableModel tableModel, ResultSet resultSet) {
         if (resultSet != null) {
             System.out.println("Данные получены.");
             try {
@@ -46,17 +54,12 @@ public class FileDB {
                 System.out.println("Имена колонок конвертированы и добавлены в модель таблицы.");
 
                 // Добавляем строки в модель таблицы
-                while (resultSet.next()) {
-                    Object[] row = new Object[columnCount]; // создаем объект, состоящий из данных в количестве columnCount
-                    for (int i = 1; i <= columnCount; i++) {
-                        row[i - 1] = resultSet.getObject(i); // считываем в наш массив данные строки и т.д.
-                    }
-                    tableModel.addRow(row); // добавляем в модель таблицы строку
-                    System.out.println("Данные добавлены в модель таблицы.");
-                }
+                getRowFromDB(tableModel, resultSet, columnCount);
             } catch (Exception e) {
                 System.out.println("Ошибка данных: " + e);
             }
+        } else {
+            System.out.println("Данные отсутствуют.");
         }
         try {
             if (resultSet != null) resultSet.close();
@@ -64,6 +67,17 @@ public class FileDB {
         } catch (SQLException e) {
             System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
         }
+    }
+
+    public static void getRowFromDB(DefaultTableModel tableModel, ResultSet resultSet, int columnCount) throws SQLException {
+        while (resultSet.next()) {
+            Object[] row = new Object[columnCount]; // создаем объект, состоящий из данных в количестве columnCount
+            for (int i = 1; i <= columnCount; i++) {
+                row[i - 1] = resultSet.getObject(i); // считываем в наш массив данные строки и т.д.
+            }
+            tableModel.addRow(row); // добавляем в модель таблицы строку
+        }
+        System.out.println("Данные добавлены в модель таблицы.");
     }
 
     public static boolean isFile(Connection connection, String dbName) {
@@ -277,7 +291,7 @@ public class FileDB {
         }
     }
 
-    public static String updateDataDB(DefaultTableModel tableModel, JLabel statusLabel) {
+    public static String updateDataDB(DefaultTableModel tableModel, String[] inputData) {
         String updateDataQuery = "INSERT INTO main (" +
                 "TypeService, Regulations, ScheduledDate, LastServiceDate, " +
                 "Volume, ManufacturerCode, SparePartsStock, Comment" +
@@ -290,27 +304,25 @@ public class FileDB {
             PreparedStatement preparedStatement = connection.prepareStatement(updateDataQuery);
             if (selectedDB(preparedStatement, dbName)) return "Ошибка выбора БД...";
 
-            // проходимся по всем строкам модели и добавляем данные в БД
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                String column1Value = tableModel.getValueAt(i, 0).toString();
-                String column2Value = tableModel.getValueAt(i, 1).toString();
-                Date column3Value = parseDate(tableModel.getValueAt(i, 2).toString());
-                Date column4Value = parseDate(tableModel.getValueAt(i, 3).toString());
-                double column5Value = Double.parseDouble(tableModel.getValueAt(i, 4).toString());
-                String column6Value = tableModel.getValueAt(i, 5).toString();
-                double column7Value = Double.parseDouble(tableModel.getValueAt(i, 6).toString());
-                String column8Value = tableModel.getValueAt(i, 7).toString();
+            // добавляем данные в БД
+            String column1Value = inputData[0];
+            String column2Value = inputData[1];
+            Date column3Value = inputData[2].isEmpty() ? null : parseDate(inputData[2]);
+            Date column4Value = inputData[3].isEmpty() ? null : parseDate(inputData[3]);
+            double column5Value = Double.parseDouble(inputData[4]);
+            String column6Value = inputData[5];
+            double column7Value = Double.parseDouble(inputData[6]);
+            String column8Value = inputData[7];
 
-                preparedStatement.setString(1, column1Value);
-                preparedStatement.setString(2, column2Value);
-                preparedStatement.setDate(3, column3Value);
-                preparedStatement.setDate(4, column4Value);
-                preparedStatement.setDouble(5, column5Value);
-                preparedStatement.setString(6, column6Value);
-                preparedStatement.setDouble(7, column7Value);
-                preparedStatement.setString(8, column8Value);
-                preparedStatement.executeUpdate();
-            }
+            preparedStatement.setString(1, column1Value);
+            preparedStatement.setString(2, column2Value);
+            preparedStatement.setDate(3, column3Value);
+            preparedStatement.setDate(4, column4Value);
+            preparedStatement.setDouble(5, column5Value);
+            preparedStatement.setString(6, column6Value);
+            preparedStatement.setDouble(7, column7Value);
+            preparedStatement.setString(8, column8Value);
+            preparedStatement.executeUpdate();
 
             return "Данные успешно добавлены в БД!";
         } catch (SQLException e) {

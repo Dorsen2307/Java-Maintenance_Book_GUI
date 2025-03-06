@@ -7,6 +7,9 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.Objects;
 
 public class MainWindow extends JFrame {
@@ -38,7 +41,7 @@ public class MainWindow extends JFrame {
         table = new JTable(tableModel);
 
         // подключаемся к БД и считываем все данные
-        FileDB.getConnectionDbAndReadAllData(tableModel);
+        FileDB.getConnectionDb(tableModel);
 
         JPanel tablePanel = new JPanel(); // создаем основу для таблицы
         tablePanel.add(new JScrollPane(table)); // добавляем таблицу на панель со скроллом
@@ -145,15 +148,29 @@ public class MainWindow extends JFrame {
 //            }
 
             // добавляем новую строку в модель таблицы
-            tableModel.addRow(inputData);
+//            tableModel.addRow(inputData);
             // обновляем статус
-            statusLabel.setText("Новые данные успешно добавлены в модель.");
-            System.out.println("Новые данные успешно добавлены в модель.");
+//            statusLabel.setText("Новые данные успешно добавлены в модель.");
+//            System.out.println("Новые данные успешно добавлены в модель.");
 
             // обновляем данные в БД
-            String resultUpdateDataDB = FileDB.updateDataDB(tableModel, statusLabel);
+            String resultUpdateDataDB = FileDB.updateDataDB(tableModel, inputData);
             statusLabel.setText(resultUpdateDataDB);
             System.out.println(resultUpdateDataDB);
+
+            // обновляем данные в модели
+            tableModel.setRowCount(0); // очищаем модель
+
+            try {
+                ResultSet resultSet = FileDB.isTable(FileDB.connectDB(), "main", FileDB.dbName);
+                assert resultSet != null : "Ошибка на стадии обновления данных в модели.";
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                FileDB.getRowFromDB(tableModel, resultSet, columnCount);
+                System.out.println("Данные модели обновлены.");
+            } catch (SQLException e) {
+                System.out.println("Ошибка SQL (addRow).");
+            }
         }
 
         private void deleteRow() {
@@ -162,9 +179,9 @@ public class MainWindow extends JFrame {
             statusLabel.setText("Строка №" + (selectedRow + 1) + " удалена.");
 
             // обновляем данные в БД
-            String resultUpdateDataDB = FileDB.updateDataDB(tableModel, statusLabel);
-            statusLabel.setText(resultUpdateDataDB);
-            System.out.println(resultUpdateDataDB);
+//            String resultUpdateDataDB = FileDB.updateDataDB(tableModel);
+//            statusLabel.setText(resultUpdateDataDB);
+//            System.out.println(resultUpdateDataDB);
         }
 
         //todo - добавить метод редактирования
