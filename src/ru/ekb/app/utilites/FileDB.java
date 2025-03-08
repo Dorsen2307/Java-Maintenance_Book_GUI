@@ -17,6 +17,7 @@ import java.sql.Date;
 public class FileDB {
     public static Connection connection;
     public static final String dbName = "maindb";
+    public static String[] columnNames;
 
     public static void getConnectionDb(DefaultTableModel tableModel) {
         if (!connectDriver()) { // подключаемся к Драйверу
@@ -48,13 +49,14 @@ public class FileDB {
 
                 // Добавляем имена колонок в модель таблицы
                 for (int i = 1; i <= columnCount; i++) {
-                    String convertedName = convertedHeader(metaData.getColumnName(i)); // заменяем на рус.яз.
+                    columnNames[i-1] = metaData.getColumnName(i);
+                    String convertedName = convertedHeader(columnNames[i-1]); // заменяем на рус.яз.
                     tableModel.addColumn(convertedName);
                 }
                 System.out.println("Имена колонок конвертированы и добавлены в модель таблицы.");
 
                 // Добавляем строки в модель таблицы
-                getRowFromDB(tableModel, resultSet, columnCount);
+                setRowFromDB(tableModel, resultSet, columnCount);
             } catch (Exception e) {
                 System.out.println("Ошибка данных: " + e);
             }
@@ -69,7 +71,7 @@ public class FileDB {
         }
     }
 
-    public static void getRowFromDB(DefaultTableModel tableModel, ResultSet resultSet, int columnCount) throws SQLException {
+    public static void setRowFromDB(DefaultTableModel tableModel, ResultSet resultSet, int columnCount) throws SQLException {
         while (resultSet.next()) {
             Object[] row = new Object[columnCount]; // создаем объект, состоящий из данных в количестве columnCount
             for (int i = 1; i <= columnCount; i++) {
@@ -291,8 +293,8 @@ public class FileDB {
         }
     }
 
-    public static String updateDataDB(DefaultTableModel tableModel, String[] inputData) {
-        String updateDataQuery = "INSERT INTO main (" +
+    public static String addDataDB(String[] inputData) {
+        String addDataQuery = "INSERT INTO main (" +
                 "TypeService, Regulations, ScheduledDate, LastServiceDate, " +
                 "Volume, ManufacturerCode, SparePartsStock, Comment" +
                 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
@@ -301,7 +303,7 @@ public class FileDB {
             connection = connectDB();
             assert connection != null;
             // выбираем БД
-            PreparedStatement preparedStatement = connection.prepareStatement(updateDataQuery);
+            PreparedStatement preparedStatement = connection.prepareStatement(addDataQuery);
             if (selectedDB(preparedStatement, dbName)) return "Ошибка выбора БД...";
 
             // добавляем данные в БД
@@ -328,6 +330,43 @@ public class FileDB {
         } catch (SQLException e) {
             System.out.println("Ошибка SQL (updateDataDB): " + e);
             return "Ошибка выполнения SQL команды.";
+        } finally {
+            try {
+                if (connection != null) connection.close();
+            } catch (SQLException e) {
+                System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
+            }
+        }
+    }
+
+    public static void updateDataDB(String idRow, int indexColumn, Object valueCell) {
+        String updateDataQuery = "UPDATE main SET ? = ? WHERE Id = ?";
+
+        try {
+            connection = connectDB();
+            assert connection != null;
+            PreparedStatement preparedStatement = connection.prepareStatement(updateDataQuery);
+            preparedStatement.setString(1, columnNames[indexColumn-1]);
+            System.out.println("columnNames[" + (indexColumn - 1) + "]: " + columnNames[indexColumn-1]);
+
+            // Устанавливаем значение для столбца в зависимости от типа данных
+            if (valueCell instanceof String) {
+                preparedStatement.setString(2, (String) valueCell);
+            } else if (valueCell instanceof Integer) {
+                preparedStatement.setInt(2, (Integer) valueCell);
+            } else if (valueCell instanceof Double) {
+                preparedStatement.setDouble(2, (Double) valueCell);
+            } else if (valueCell instanceof Boolean) {
+                preparedStatement.setBoolean(2, (Boolean) valueCell);
+            } else {
+                System.out.println("Неизвестный тип данных для обновления");
+                return;
+            }
+
+            preparedStatement.setString(3, idRow);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Ошибка SQL (deleteRowDB): " + e);
         } finally {
             try {
                 if (connection != null) connection.close();
@@ -366,5 +405,63 @@ public class FileDB {
                 System.out.println("Ошибка при закрытии ресурсов: " + e.getMessage());
             }
         }
+    }
+
+    public static Object getCellValue(Object idRow, int columnIndex) {
+        String cellValueQuery = "SELECT * FROM main WHERE Id = ?;";
+        Object result = null;
+
+        try {
+            connection = connectDB();
+            assert connection != null;
+            PreparedStatement preparedStatement = connection.prepareStatement(cellValueQuery);
+            preparedStatement.setString(1, (String) idRow);
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next()) {
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                // проверяем, что номер столбца корректен
+                if (columnIndex > 0 && columnIndex <= columnCount) {
+                    int columnType = metaData.getColumnType(columnIndex); // получаем тип данных по индексу
+
+                    // считываем значение в зависимости от типа данных
+                    switch (columnType) {
+                        case Types.VARCHAR:
+                        case Types.CHAR:
+                            result = resultSet.getString(columnIndex); // Считываем как строку
+                            break;
+                        case Types.INTEGER:
+                            result = resultSet.getInt(columnIndex); // Считываем как целое число
+                            break;
+                        case Types.DOUBLE:
+                            result = resultSet.getDouble(columnIndex); // Считываем как число с плавающей запятой
+                            break;
+                        case Types.BOOLEAN:
+                            result = resultSet.getBoolean(columnIndex); // Считываем как логическое значение
+                            break;
+                        default:
+                            System.out.println("Неизвестный тип данных"); // Обработка неизвестных типов
+                            break;
+                    }
+                } else {
+                    System.out.println("Неверный номер столбца"); // Обработка случая, когда номер столбца невалиден
+                }
+            } else {
+                System.out.println("Строка не найдена"); // Обработка случая, когда строка не найдена
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Ошибка SQL (requestingCellValue): " + e);
+        } finally {
+            try {
+                if (connection != null) connection.close();
+            } catch(SQLException e){
+                System.out.println("Ошибка при закрытии соединения: " + e);
+            }
+        }
+
+        return result; // Возвращаем полученное значение или null, если не найдено
     }
 }

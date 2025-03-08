@@ -3,6 +3,8 @@ package ru.ekb.app.windows;
 import ru.ekb.app.utilites.FileDB;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -150,7 +152,7 @@ public class MainWindow extends JFrame {
             // добавляем новую строку в модель таблицы
 
             // обновляем данные в БД
-            String resultUpdateDataDB = FileDB.updateDataDB(tableModel, inputData);
+            String resultUpdateDataDB = FileDB.addDataDB(inputData);
             statusLabel.setText(resultUpdateDataDB);
             System.out.println(resultUpdateDataDB);
 
@@ -178,16 +180,36 @@ public class MainWindow extends JFrame {
                 assert resultSet != null : "Ошибка resultSet=null на стадии обновления данных в модели.";
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount();
-                FileDB.getRowFromDB(tableModel, resultSet, columnCount);
+                FileDB.setRowFromDB(tableModel, resultSet, columnCount);
                 System.out.println("Данные модели обновлены.");
             } catch (SQLException e) {
                 System.out.println("Ошибка SQL (addRow).");
             }
         }
 
-        //todo - добавить метод редактирования
+        private class TableListener implements TableModelListener {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                boolean isChanged = false;
+                int selectedRow = table.getSelectedRow();
+                int selectedColumn = table.getSelectedColumn();
+                Object idRow = tableModel.getValueAt(selectedRow, 1);
+                Object valueCell = tableModel.getValueAt(selectedRow, selectedColumn);
 
+                if (valueCell != null) isChanged = checkingForMatch(selectedRow, idRow, valueCell);
+
+                if (isChanged) FileDB.updateDataDB((String) idRow, selectedColumn, valueCell);
+            }
+
+            private boolean checkingForMatch(int selectedRow, Object idRow, Object valueCell) {
+                Object valueDB = FileDB.getCellValue(idRow, selectedRow); // получаем значение из БД
+
+                if (valueDB != null) {
+                    return valueDB.equals(valueCell);
+                } else {
+                    return false;
+                }
+            }
+        }
     }
 }
-// todo - создать метод проверки файла БД и его создание при отсутствии
-// todo - создать метод соединения с БД
