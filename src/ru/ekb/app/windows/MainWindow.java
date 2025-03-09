@@ -42,8 +42,12 @@ public class MainWindow extends JFrame {
         tableModel = new DefaultTableModel();
         table = new JTable(tableModel);
 
+
         // подключаемся к БД и считываем все данные
         FileDB.getConnectionDb(tableModel);
+
+        // добавляем слушателя модели
+        tableModel.addTableModelListener(new TableListener());
 
         JPanel tablePanel = new JPanel(); // создаем основу для таблицы
         tablePanel.add(new JScrollPane(table)); // добавляем таблицу на панель со скроллом
@@ -162,7 +166,7 @@ public class MainWindow extends JFrame {
 
         private void deleteRow() {
             int selectedRow = table.getSelectedRow(); // получаем индекс выбранной строки
-            Object idRow = tableModel.getValueAt(selectedRow, 1); // получаем id строки
+            Object idRow = tableModel.getValueAt(selectedRow, 0); // получаем id строки
 
             FileDB.deleteRowDB((String) idRow);
 
@@ -186,29 +190,35 @@ public class MainWindow extends JFrame {
                 System.out.println("Ошибка SQL (addRow).");
             }
         }
+    }
 
-        private class TableListener implements TableModelListener {
-            @Override
-            public void tableChanged(TableModelEvent e) {
-                boolean isChanged = false;
-                int selectedRow = table.getSelectedRow();
-                int selectedColumn = table.getSelectedColumn();
-                Object idRow = tableModel.getValueAt(selectedRow, 1);
-                Object valueCell = tableModel.getValueAt(selectedRow, selectedColumn);
+    private static class TableListener implements TableModelListener {
+        @Override
+        public void tableChanged(TableModelEvent e) {
+            boolean isChanged = false;
+            int selectedRow = e.getFirstRow();
+            int selectedColumn = e.getColumn();
+            DefaultTableModel model = (DefaultTableModel) e.getSource();
+            Object idRow = model.getValueAt(selectedRow, 0);
+            Object valueCell = model.getValueAt(selectedRow, selectedColumn);
 
-                if (valueCell != null) isChanged = checkingForMatch(selectedRow, idRow, valueCell);
-
-                if (isChanged) FileDB.updateDataDB((String) idRow, selectedColumn, valueCell);
+            if (valueCell != null) {
+                isChanged = checkingForMatch(selectedColumn, idRow, valueCell);
             }
 
-            private boolean checkingForMatch(int selectedRow, Object idRow, Object valueCell) {
-                Object valueDB = FileDB.getCellValue(idRow, selectedRow); // получаем значение из БД
+            if (!isChanged) {
+                FileDB.updateDataDB((Integer) idRow, selectedColumn, valueCell);
+            }
+        }
 
-                if (valueDB != null) {
-                    return valueDB.equals(valueCell);
-                } else {
-                    return false;
-                }
+        private boolean checkingForMatch(int selectedColumn, Object idRow, Object valueCell) {
+//            System.out.println("ID = " + idRow);
+            Object valueDB = FileDB.getCellValue(idRow, selectedColumn + 1); // получаем значение из БД
+
+            if (valueDB != null) {
+                return valueDB.equals(valueCell);
+            } else {
+                return false;
             }
         }
     }
