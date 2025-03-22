@@ -354,20 +354,18 @@ public class FileDB {
             assert connection != null;
             PreparedStatement preparedStatement = connection.prepareStatement(updateDataQuery);
             selectedDB(preparedStatement, dbName);
-            System.out.println("columnNames[" + (indexColumn) + "]: " + columnNames[indexColumn]);
+//            System.out.println("columnNames[" + (indexColumn) + "]: " + columnNames[indexColumn]);
 
             // Устанавливаем значение для столбца в зависимости от типа данных
-            if (valueCell instanceof String) {
-                preparedStatement.setString(1, (String) valueCell);
-            } else if (valueCell instanceof Integer) {
-                preparedStatement.setInt(1, (Integer) valueCell);
-            } else if (valueCell instanceof Double) {
-                preparedStatement.setDouble(1, (Double) valueCell);
-            } else if (valueCell instanceof Boolean) {
-                preparedStatement.setBoolean(1, (Boolean) valueCell);
-            } else {
-                System.out.println("Неизвестный тип данных для обновления");
-                return;
+            switch (valueCell) {
+                case String s -> preparedStatement.setString(1, s);
+                case Integer i -> preparedStatement.setInt(1, i);
+                case Double v -> preparedStatement.setDouble(1, v);
+                case Boolean b -> preparedStatement.setBoolean(1, b);
+                case null, default -> {
+                    System.out.println("Неизвестный тип данных для обновления");
+                    return;
+                }
             }
 
             preparedStatement.setInt(2, idRow);
@@ -395,7 +393,7 @@ public class FileDB {
         }
     }
 
-    public static void deleteRowDB(String idRow) {
+    public static void deleteRowDB(int idRow) {
         String deleteRowQuery = "DELETE FROM main WHERE Id = ?;";
 
         try {
@@ -403,7 +401,7 @@ public class FileDB {
             assert connection != null;
             PreparedStatement preparedStatement = connection.prepareStatement(deleteRowQuery);
             selectedDB(preparedStatement, dbName);
-            preparedStatement.setString(1, idRow); // устанавливаем значение для параметра по ?
+            preparedStatement.setInt(1, idRow); // устанавливаем значение для параметра по ?
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             System.out.println("Ошибка SQL (deleteRowDB): " + e);

@@ -1,11 +1,13 @@
 package ru.ekb.app.windows;
 
 import ru.ekb.app.utilites.FileDB;
+import ru.ekb.app.utilites.TextAreaRenderer;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -40,8 +42,13 @@ public class MainWindow extends JFrame {
 
         // создаем модель таблицы
         tableModel = new DefaultTableModel();
-        table = new JTable(tableModel);
-
+        table = new JTable(tableModel) {
+            @Override
+            public boolean getScrollableTracksViewportHeight() {
+                    return getPreferredSize().height < getParent().getHeight();
+            };
+        };
+        table.setDefaultRenderer(Object.class, new TextAreaRenderer());
 
         // подключаемся к БД и считываем все данные
         FileDB.getConnectionDb(tableModel);
@@ -85,8 +92,10 @@ public class MainWindow extends JFrame {
         getContentPane().add(BorderLayout.CENTER, tablePanel); // добавляем панель с таблицей на окно по центру
         getContentPane().add(BorderLayout.SOUTH, bottomPanel); // добавляем нижнюю панель на окно внизу
 
+
         setLocationRelativeTo(null); //размещение окна по центру экрана
         setVisible(true);
+//        adjustRowHeights(table); // подгоняем высоту строк под текст
     }
 
     private class ButtonsListener implements ActionListener {
@@ -162,18 +171,22 @@ public class MainWindow extends JFrame {
 
             // обновляем данные в модели
             updateDataModel();
+
+//            adjustRowHeights(table);
         }
 
         private void deleteRow() {
             int selectedRow = table.getSelectedRow(); // получаем индекс выбранной строки
             Object idRow = tableModel.getValueAt(selectedRow, 0); // получаем id строки
 
-            FileDB.deleteRowDB((String) idRow);
-
+            FileDB.deleteRowDB((Integer) idRow);
+            // todo - сделать проверку, что удаление прошло успешно
             statusLabel.setText("Строка с id#" + idRow + " удалена.");
 
             // обновляем данные в БД
             updateDataModel();
+
+//            adjustRowHeights(table);
         }
 
         private void updateDataModel() {
@@ -184,8 +197,12 @@ public class MainWindow extends JFrame {
                 assert resultSet != null : "Ошибка resultSet=null на стадии обновления данных в модели.";
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount();
+
                 FileDB.setRowFromDB(tableModel, resultSet, columnCount);
+
                 System.out.println("Данные модели обновлены.");
+
+//                adjustRowHeights(table);
             } catch (SQLException e) {
                 System.out.println("Ошибка SQL (addRow).");
             }
@@ -195,19 +212,21 @@ public class MainWindow extends JFrame {
     private static class TableListener implements TableModelListener {
         @Override
         public void tableChanged(TableModelEvent e) {
-            boolean isChanged = false;
-            int selectedRow = e.getFirstRow();
-            int selectedColumn = e.getColumn();
-            DefaultTableModel model = (DefaultTableModel) e.getSource();
-            Object idRow = model.getValueAt(selectedRow, 0);
-            Object valueCell = model.getValueAt(selectedRow, selectedColumn);
+            if (e.getType() == TableModelEvent.UPDATE) {
+                boolean isChanged = false;
+                int selectedRow = e.getFirstRow();
+                int selectedColumn = e.getColumn();
+                DefaultTableModel model = (DefaultTableModel) e.getSource();
+                Object idRow = model.getValueAt(selectedRow, 0);
+                Object valueCell = model.getValueAt(selectedRow, selectedColumn);
 
-            if (valueCell != null) {
-                isChanged = checkingForMatch(selectedColumn, idRow, valueCell);
-            }
+                if (valueCell != null) {
+                    isChanged = checkingForMatch(selectedColumn, idRow, valueCell);
+                }
 
-            if (!isChanged) {
-                FileDB.updateDataDB((Integer) idRow, selectedColumn, valueCell);
+                if (!isChanged) {
+                    FileDB.updateDataDB((Integer) idRow, selectedColumn, valueCell);
+                }
             }
         }
 
@@ -220,6 +239,20 @@ public class MainWindow extends JFrame {
             } else {
                 return false;
             }
+        }
+    }
+
+    // todo - не корректно срабатывает
+    private static void adjustRowHeights(JTable table) {
+        for (int row = 0; row < table.getRowCount(); row++) {
+            int height = 0; // Инициализация переменной для хранения максимальной высоты для текущей строки
+            for (int column = 0; column < table.getColumnCount(); column++) {
+                TableCellRenderer renderer = table.getCellRenderer(row, column); // Получаем рендерер для ячейки
+                Component comp = table.prepareRenderer(renderer, row, column); // Подготовка компонента для рендеринга
+                int res = comp.getPreferredSize().height;
+                height = Math.max(height, res); // Обновляем максимальную высоту
+            }
+            table.setRowHeight(row, height); // Устанавливаем высоту строки
         }
     }
 }
